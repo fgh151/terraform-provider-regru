@@ -3,7 +3,6 @@ package provider
 import (
 	"encoding/json"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -175,12 +174,8 @@ func (r RegruProvider) GetRecords(domain string) ([]DnsRecord, error, []byte) {
 	return returnAr, err, body
 }
 
-func (r RegruProvider) DeleteRecord(record DnsRecord) {
+func (r RegruProvider) DeleteRecord(record DnsRecord) (error, []byte) {
 	req, err := http.NewRequest("GET", "https://api.reg.ru/api/regru2/zone/remove_record", nil)
-	if err != nil {
-		log.Print(err)
-		os.Exit(1)
-	}
 
 	q := req.URL.Query()
 
@@ -208,7 +203,9 @@ func (r RegruProvider) DeleteRecord(record DnsRecord) {
 	req.URL.RawQuery = q.Encode()
 
 	c := &http.Client{}
-	c.Do(req)
+	_, err = c.Do(req)
+
+	return err, b
 }
 
 func (r RegruProvider) crateParams(domain string) []byte {
