@@ -40,7 +40,7 @@ type domainsRequestParam struct {
 	Dname string `json:"dname"`
 }
 
-func (r RegruProvider) AddRecord(record DnsRecord) (error, []byte, []byte) {
+func (r RegruProvider) AddRecord(record DnsRecord) (error, []byte) {
 	var endpoint = ""
 
 	params := map[string]interface{}{
@@ -100,7 +100,7 @@ func (r RegruProvider) AddRecord(record DnsRecord) (error, []byte, []byte) {
 
 	body, err := ioutil.ReadAll(resp.Body)
 
-	return err, body, b
+	return err, body
 }
 
 type RegruRecord struct {

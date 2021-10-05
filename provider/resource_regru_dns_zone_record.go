@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
@@ -12,6 +13,11 @@ func record() *schema.Resource {
 	return &schema.Resource{
 
 		Schema: map[string]*schema.Schema{
+			"zone": {
+				Type:        schema.TypeString,
+				Required:    true,
+				Description: "Domain zone",
+			},
 			"host": {
 				Type:        schema.TypeString,
 				Required:    true,
@@ -71,27 +77,27 @@ func resourceCreateRecord(ctx context.Context, d *schema.ResourceData, i interfa
 
 	var diags diag.Diagnostics
 
-	_, body, req := c.AddRecord(DnsRecord{
+	err, body := c.AddRecord(DnsRecord{
 		Subdomain: d.Get("host").(string),
 		Host:      d.Get("host").(string),
 		Type:      d.Get("type").(string),
 		Value:     d.Get("value").(string),
 		Ttl:       d.Get("ttl").(int),
-
-		Domain: "", //TODO get from parent resource
+		Domain:    d.Get("zone").(string),
 	})
 
-	str := fmt.Sprintf("Underlying Value: %v\n", c)
+	if err != nil {
+		diags = append(diags, diag.Diagnostic{
+			Severity: diag.Error,
+			Summary:  "Create record error",
+			Detail:   string(body),
+		})
+		return diags
+	}
 
-	//if err != nil {
-	diags = append(diags, diag.Diagnostic{
-		Severity: diag.Error,
-		Summary:  "Create record error",
-		Detail:   str + " " + string(body) + " " + string(req),
-	})
-	//}
+	d.SetId(uuid.New().String())
 
-	return diags
+	return nil
 }
 
 func dataSourceRecordRead(ctx context.Context, data *schema.ResourceData, i interface{}) diag.Diagnostics {
@@ -107,27 +113,6 @@ func dataSourceRecordRead(ctx context.Context, data *schema.ResourceData, i inte
 
 	return diags
 }
-
-//func resourceCreateRecord(ctx context.Context, d *schema.ResourceData, i interface{}) diag.Diagnostics {
-//c := i.(*RegruProvider)
-//var diags diag.Diagnostics
-
-//err := c.AddRecord(DnsRecord{
-//	Host:  d.Get("host").(string),
-//	Type:  d.Get("type").(string),
-//	Value: d.Get("value").(string),
-//	Ttl:   d.Get("ttl").(int),
-//})
-//
-//if err != nil {
-//	diags = append(diags, diag.Diagnostic{
-//		Severity: diag.Error,
-//		Detail:   err.Error(),
-//	})
-//}
-
-//return diags
-//}
 
 func resourceDeleteRecord(data *schema.ResourceData, i interface{}) error {
 
