@@ -40,6 +40,29 @@ type domainsRequestParam struct {
 	Dname string `json:"dname"`
 }
 
+type RegruRecord struct {
+	Content string
+	Prio    int
+	Rectype string
+	State   string
+	Subname string
+}
+
+type RegruDomain struct {
+	Dname string
+	Reult string
+	Rrs   []RegruRecord
+}
+
+type RegruAnswer struct {
+	Domains []RegruDomain
+}
+
+type RegruResponse struct {
+	Answer RegruAnswer
+	Result string
+}
+
 func (r RegruProvider) AddRecord(record DnsRecord) (error, []byte) {
 	var endpoint = ""
 
@@ -103,55 +126,36 @@ func (r RegruProvider) AddRecord(record DnsRecord) (error, []byte) {
 	return err, body
 }
 
-type RegruRecord struct {
-	Content string
-	Prio    int
-	Rectype string
-	State   string
-	Subname string
-}
-
-type RegruDomain struct {
-	Dname string
-	Reult string
-	Rrs   []RegruRecord
-}
-
-type RegruAnswer struct {
-	Domains []RegruDomain
-}
-
-type RegruResponse struct {
-	Answer RegruAnswer
-	Result string
-}
-
 //https://www.reg.ru/support/help/api2#zone_get_resource_records
 
-func (r RegruProvider) GetRecords(domain string) []DnsRecord {
+func (r RegruProvider) GetRecords(domain string) ([]DnsRecord, error, []byte) {
 
 	req, err := http.NewRequest("GET", "https://api.reg.ru/api/regru2/zone/get_resource_records", nil)
-	if err != nil {
-		log.Print(err)
-		os.Exit(1)
+
+	params := map[string]interface{}{
+		"username": r.Username,
+		"password": r.Password,
+		"domains":  []domainsRequestParam{{Dname: domain}},
 	}
 
 	q := req.URL.Query()
 
-	q.Add("input_data", string(r.crateParams(domain)))
+	b, err := json.Marshal(params)
+
+	q.Add("input_data", string(b))
 	q.Add("input_format", "json")
 
 	req.URL.RawQuery = q.Encode()
 
 	c := &http.Client{}
 
-	resp, _ := c.Do(req)
+	resp, err := c.Do(req)
 
-	body, _ := ioutil.ReadAll(resp.Body)
+	body, err := ioutil.ReadAll(resp.Body)
 	defer resp.Body.Close()
 
 	var rResp RegruResponse
-	json.Unmarshal(body, &rResp)
+	err = json.Unmarshal(body, &rResp)
 
 	var returnAr []DnsRecord
 
@@ -168,7 +172,7 @@ func (r RegruProvider) GetRecords(domain string) []DnsRecord {
 		}
 	}
 
-	return returnAr
+	return returnAr, err, body
 }
 
 func (r RegruProvider) DeleteRecord(record DnsRecord) {

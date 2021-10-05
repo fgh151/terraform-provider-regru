@@ -100,16 +100,36 @@ func resourceCreateRecord(ctx context.Context, d *schema.ResourceData, i interfa
 	return nil
 }
 
-func dataSourceRecordRead(ctx context.Context, data *schema.ResourceData, i interface{}) diag.Diagnostics {
+func dataSourceRecordRead(ctx context.Context, d *schema.ResourceData, i interface{}) diag.Diagnostics {
 	c := i.(RegruProvider)
 	var diags diag.Diagnostics
-	str := fmt.Sprintf("Underlying Value: %v\n", c)
 
-	diags = append(diags, diag.Diagnostic{
-		Summary:  "read",
-		Severity: diag.Error,
-		Detail:   str,
-	})
+	ar, err, resp := c.GetRecords(d.Get("zone").(string))
+
+	var record DnsRecord
+	record_type := d.Get("type").(string)
+	value := d.Get("value").(string)
+	for _, r := range ar {
+		if r.Type == record_type && r.Value == value {
+			record = r
+		}
+	}
+
+	if record != (DnsRecord{}) {
+		err = d.Set("host", record.Host)
+		err = d.Set("type", record.Type)
+		err = d.Set("value", record.Value)
+		err = d.Set("ttl", record.Ttl)
+		err = d.Set("zone", record.Domain)
+	}
+
+	if err != nil {
+		diags = append(diags, diag.Diagnostic{
+			Summary:  "read",
+			Severity: diag.Error,
+			Detail:   err.Error() + fmt.Sprintf("%V", ar) + string(resp),
+		})
+	}
 
 	return diags
 }
